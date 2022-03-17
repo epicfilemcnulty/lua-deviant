@@ -1,8 +1,8 @@
 package = "deviant"
- version = "1.0.0-1"
+ version = "1.0.1-1"
  source = {
     url = "git+https://github.com/epicfilemcnulty/lua-deviant.git",
-    tag = "v1.0.0"
+    tag = "v1.0.1"
  }
  description = {
     summary = "A set of small useful functions extending lua's standard library",

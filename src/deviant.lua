@@ -104,34 +104,6 @@ local function module_available(name)
 	end
 end
 
-local function redis(host, port, db)
-	local host = host or os.getenv("REDIS_HOST") or "127.0.0.1"
-	local port = port or tonumber(os.getenv("REDIS_PORT")) or 6379
-	local db = db or tonumber(os.getenv("REDIS_DB")) or 0
-	local redis = require("resty.redis")
-	local red = redis:new()
-	red:set_timeouts(1000, 1000, 1000) -- 1 sec
-	local ok, err = red:connect(host, port)
-	if ok then
-		red:select(db)
-		return red, nil
-	end
-	return nil, err
-end
-
-local function save_request_stats()
-	local red = redis()
-	if red then
-		red:zincrby(ngx.var.host .. ":UAS", 1, ngx.var.http_user_agent)
-		red:zincrby(ngx.var.host .. ":REQ", 1, ngx.var.uri)
-		local lang = ngx.var.http_accept_language
-		if lang then
-			red:zincrby(ngx.var.host .. ":LANG", 1, lang)
-		end
-		red:set_keepalive(10000, 100)
-	end
-end
-
 _M.merge_tables = merge_tables
 _M.copy_table = copy_table
 _M.sort_table_keys = sort_table_keys
@@ -141,6 +113,4 @@ _M.file_exists = file_exists
 _M.list_files = list_files
 _M.list_dirs = list_dirs
 _M.module_available = module_available
-_M.redis = redis
-_M.save_request_stats = save_request_stats
 return _M
