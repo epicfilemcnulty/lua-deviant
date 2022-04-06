@@ -1,6 +1,107 @@
-local _M = { version = "1.0.0" }
+local _M = { version = "2.0.0" }
 
-local lfs = require("lfs")
+local bit = require("bit")
+local ffi = require("ffi")
+local C = ffi.C
+
+ffi.cdef([[
+int fork(void);
+int execlp(const char* file, const char *arg, ...);
+int waitpid(int pid, int *status, int options);
+int kill(int pid, int sig);
+unsigned int sleep(unsigned int seconds);
+
+struct dirent {
+    int64_t         d_ino;
+    size_t          d_off;
+    unsigned short  d_reclen;
+    unsigned char   d_type;
+    char            d_name[256];
+};
+typedef struct  __dirstream DIR;
+struct stat{
+    unsigned long   st_dev;
+    unsigned long   st_ino;
+    unsigned long   st_nlink;
+    unsigned int    st_mode;
+    unsigned int    st_uid;
+    unsigned int    st_gid;
+    unsigned int    __pad0;
+    unsigned long   st_rdev;
+    long            st_size;
+    long            st_blksize;
+    long            st_blocks;
+    unsigned long   st_atime;
+    unsigned long   st_atime_nsec;
+    unsigned long   st_mtime;
+    unsigned long   st_mtime_nsec;
+    unsigned long   st_ctime;
+    unsigned long   st_ctime_nsec;
+    long            __unused[3];
+};
+
+DIR *opendir(const char *name);
+struct dirent *readdir(DIR *dirp);
+int closedir(DIR *dirp);
+long syscall(int number, ...);
+]])
+
+local function kill(pid, signal)
+	return C.kill(pid, signal)
+end
+
+local function fork()
+	return C.fork()
+end
+
+local function execlp(...)
+	C.execlp(...)
+end
+
+local function waitpid(pid)
+	local status = ffi.new("int[1]")
+	local WNOHANG = 1
+	local id = C.waitpid(pid, status, WNOHANG)
+	return id, status
+end
+
+local function sleep(seconds)
+	C.sleep(seconds)
+end
+
+local function list_dir(path)
+	local dir, dirent = ffi.C.opendir(path), nil
+	return function()
+		if dir ~= nil then
+			dirent = ffi.C.readdir(dir)
+			if dirent ~= nil then
+				return ffi.string(dirent.d_name)
+			end
+			ffi.C.closedir(dir)
+		end
+	end
+end
+
+local function is_file(filepath)
+	local buf = ffi.new("struct stat")
+	if ffi.C.syscall(4, filepath, buf) == -1 then
+		return false
+	end
+	return bit.band(buf.st_mode, 0xF000) == 0x8000
+end
+
+local function list_files(dir, suffix)
+	local files = {}
+	local suffix = suffix or "^.*"
+	for f in list_dir(dir) do
+		if is_file(dir .. "/" .. f) then
+			if f:match(suffix) then
+				table.insert(files, f)
+			end
+		end
+	end
+	return files
+end
 
 local function file_exists(filename)
 	local f = io.open(filename, "r")
@@ -29,34 +130,6 @@ local function write_file(filename, text)
 		return true
 	end
 	return nil, err
-end
-
-local function list_files(path)
-	local files = {}
-	for file in lfs.dir(path) do
-		if file ~= "." and file ~= ".." then
-			local f = path .. "/" .. file
-			local attr = lfs.attributes(f)
-			if attr.mode == "file" then
-				table.insert(files, file)
-			end
-		end
-	end
-	return files
-end
-
-local function list_dirs(path)
-	local dirs = {}
-	for dir in lfs.dir(path) do
-		if dir ~= "." and dir ~= ".." then
-			local f = path .. "/" .. dir
-			local attr = lfs.attributes(f)
-			if attr.mode == "directory" then
-				table.insert(dirs, dir)
-			end
-		end
-	end
-	return dirs
 end
 
 local function copy_table(t)
@@ -111,6 +184,10 @@ _M.read_file = read_file
 _M.write_file = write_file
 _M.file_exists = file_exists
 _M.list_files = list_files
-_M.list_dirs = list_dirs
+_M.fork = fork
+_M.kill = kill
+_M.execlp = execlp
+_M.waitpid = waitpid
+_M.sleep = sleep
 _M.module_available = module_available
 return _M
