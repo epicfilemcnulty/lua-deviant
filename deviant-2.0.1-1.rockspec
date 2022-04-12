@@ -1,8 +1,8 @@
 package = "deviant"
- version = "2.0.0-1"
+ version = "2.0.1-1"
  source = {
     url = "git+https://github.com/epicfilemcnulty/lua-deviant.git",
-    tag = "v2.0.0"
+    tag = "v2.0.1"
  }
  description = {
     summary = "A set of useful functions extending lua's standard library",
@@ -15,7 +15,7 @@ package = "deviant"
     license = "GPLv3"
  }
  dependencies = {
-    "luajit >= 2.1",
+    "lua >= 5.1",
  }
  build = {
     type = "builtin",
