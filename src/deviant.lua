@@ -177,6 +177,20 @@ local function module_available(name)
 	end
 end
 
+local function envsubst(filename)
+	local content, err = read_file(filename)
+	if content then
+		return content:gsub("{{([%w%d_]+)}}", function(cap)
+			return os.getenv(cap)
+		end)
+	end
+	return nil, err
+end
+
+local function render_template(tmpl, subs)
+	return string.gsub(tmpl, "{{([%w_]+)}}", subs)
+end
+
 _M.merge_tables = merge_tables
 _M.copy_table = copy_table
 _M.sort_table_keys = sort_table_keys
@@ -190,4 +204,6 @@ _M.execlp = execlp
 _M.waitpid = waitpid
 _M.sleep = sleep
 _M.module_available = module_available
+_M.envsubst = envsubst
+_M.render_template = render_template
 return _M
