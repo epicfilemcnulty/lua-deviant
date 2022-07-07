@@ -1,7 +1,27 @@
-local _M = { version = "2.0.0" }
+local _M = { version = "2.1.0" }
 
-local bit = require("bit")
-local ffi = require("ffi")
+local function module_available(name)
+	if package.loaded[name] then
+		return true
+	else
+		for _, searcher in ipairs(package.searchers or package.loaders) do
+			local loader = searcher(name)
+			if type(loader) == "function" then
+				package.preload[name] = loader
+				return true
+			end
+		end
+		return false
+	end
+end
+
+local ffi
+if module_available("ffi") then
+	ffi = require("ffi")
+else
+	ffi = require("cffi")
+end
+
 local C = ffi.C
 
 ffi.cdef([[
@@ -19,27 +39,6 @@ struct dirent {
     char            d_name[256];
 };
 typedef struct  __dirstream DIR;
-struct stat{
-    unsigned long   st_dev;
-    unsigned long   st_ino;
-    unsigned long   st_nlink;
-    unsigned int    st_mode;
-    unsigned int    st_uid;
-    unsigned int    st_gid;
-    unsigned int    __pad0;
-    unsigned long   st_rdev;
-    long            st_size;
-    long            st_blksize;
-    long            st_blocks;
-    unsigned long   st_atime;
-    unsigned long   st_atime_nsec;
-    unsigned long   st_mtime;
-    unsigned long   st_mtime_nsec;
-    unsigned long   st_ctime;
-    unsigned long   st_ctime_nsec;
-    long            __unused[3];
-};
-
 DIR *opendir(const char *name);
 struct dirent *readdir(DIR *dirp);
 int closedir(DIR *dirp);
@@ -74,27 +73,23 @@ local function list_dir(path)
 	return function()
 		if dir ~= nil then
 			dirent = ffi.C.readdir(dir)
-			if dirent ~= nil then
-				return ffi.string(dirent.d_name)
+			-- Just comparing with nil here does not work in case of cffi-lua,
+			-- it has a special construct for this, nullptr.
+			-- This should also work with LuaJIT, its FFI interface does not have
+			-- nullptr field, so in case of LuaJIT we will be comparing with nil.
+			if dirent ~= ffi.nullptr then
+				return ffi.string(dirent.d_name), ffi.tonumber(dirent.d_type)
 			end
 			ffi.C.closedir(dir)
 		end
 	end
 end
 
-local function is_file(filepath)
-	local buf = ffi.new("struct stat")
-	if ffi.C.syscall(4, filepath, buf) == -1 then
-		return false
-	end
-	return bit.band(buf.st_mode, 0xF000) == 0x8000
-end
-
 local function list_files(dir, suffix)
 	local files = {}
 	local suffix = suffix or "^.*"
-	for f in list_dir(dir) do
-		if is_file(dir .. "/" .. f) then
+	for f, t in list_dir(dir) do
+		if t == 8 then -- 8 is for regular file, 4 is for dirs
 			if f:match(suffix) then
 				table.insert(files, f)
 			end
@@ -160,21 +155,6 @@ local function sort_table_keys(t)
 	end
 	table.sort(tkeys)
 	return tkeys
-end
-
-local function module_available(name)
-	if package.loaded[name] then
-		return true
-	else
-		for _, searcher in ipairs(package.searchers or package.loaders) do
-			local loader = searcher(name)
-			if type(loader) == "function" then
-				package.preload[name] = loader
-				return true
-			end
-		end
-		return false
-	end
 end
 
 local function envsubst(filename)
