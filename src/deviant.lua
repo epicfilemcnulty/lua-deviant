@@ -1,4 +1,4 @@
-local _M = { version = "2.1.0" }
+local _M = { version = "2.1.1" }
 
 local function module_available(name)
 	if package.loaded[name] then
@@ -157,6 +157,18 @@ local function sort_table_keys(t)
 	return tkeys
 end
 
+-- This one is from http://notebook.kulchenko.com/algorithms/alphanumeric-natural-sorting-for-humans-in-lua
+local alphanumsort = function(o)
+	local function padnum(d)
+		local r = string.match(d, "0*(.+)")
+		return ("%03d%s"):format(#r, r)
+	end
+	table.sort(o, function(a, b)
+		return tostring(a):gsub("%d+", padnum) < tostring(b):gsub("%d+", padnum)
+	end)
+	return o
+end
+
 local function envsubst(filename)
 	local content, err = read_file(filename)
 	if content then
@@ -174,6 +186,7 @@ end
 _M.merge_tables = merge_tables
 _M.copy_table = copy_table
 _M.sort_table_keys = sort_table_keys
+_M.alphanumsort = alphanumsort
 _M.read_file = read_file
 _M.write_file = write_file
 _M.file_exists = file_exists

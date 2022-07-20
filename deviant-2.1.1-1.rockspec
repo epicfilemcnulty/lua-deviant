@@ -1,8 +1,8 @@
 package = "deviant"
- version = "2.1.0-1"
+ version = "2.1.1-1"
  source = {
     url = "git+https://git.deviant.guru/lua/deviant.git",
-    tag = "v2.1.0"
+    tag = "v2.1.1"
  }
  description = {
     summary = "A set of useful functions extending Lua’s standard library",
